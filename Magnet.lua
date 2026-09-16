@@ -8,8 +8,8 @@ local player = players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 -- Настройки
-local magnetRadius = 35
-local magnetSpeed = 60
+local magnetRadius = 100
+local magnetSpeed = 150
 local flySpeed = 50
 local upDownSpeed = 40
 local flying = false
