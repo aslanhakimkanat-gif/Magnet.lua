@@ -1,4 +1,4 @@
--- Мобильный скрипт: Магнит блоков + Полет с GUI (Вверх/Вниз)
+-- Мобильный скрипт: Магнит блоков + Полет с GUI (Исправленный)
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
@@ -8,8 +8,8 @@ local player = players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 -- Настройки
-local magnetRadius = 30
-local magnetSpeed = 50
+local magnetRadius = 35
+local magnetSpeed = 60
 local flySpeed = 50
 local upDownSpeed = 40
 local flying = false
@@ -111,7 +111,7 @@ local magCorner = Instance.new("UICorner")
 magCorner.CornerRadius = UDim.new(0, 8)
 magCorner.Parent = magnetButton
 
--- Кнопка закрытия меню / сворачивания (опционально)
+-- Кнопка скрыть меню
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 180, 0, 30)
 closeButton.Position = UDim2.new(0, 10, 0, 200)
@@ -133,22 +133,25 @@ closeButton.MouseButton1Click:Connect(function()
     upButton.Visible = menuVisible
     downButton.Visible = menuVisible
     magnetButton.Visible = menuVisible
-    mainFrame.Size = menuVisible and UDim2.new(0, 200, 0, 265) or UDim2.new(0, 200, 0, 35)
-    closeButton.Text = menuVisible and "Скрыть меню" | "Открыть меню"
+    if menuVisible then
+        mainFrame.Size = UDim2.new(0, 200, 0, 265)
+        closeButton.Text = "Скрыть меню"
+    else
+        mainFrame.Size = UDim2.new(0, 200, 0, 35)
+        closeButton.Text = "Открыть меню"
+    end
 end)
 
 local magnetActive = true
 
--- Обработка нажатий на кнопки Вверх / Вниз (удерживание пальцем)
+-- Обработка кнопок Вверх / Вниз
 upButton.MouseButton1Down:Connect(function() goingUp = true end)
 upButton.MouseButton1Up:Connect(function() goingUp = false end)
-upButton.MouseLeave:Connect(function() goingUp = false end)
 
 downButton.MouseButton1Down:Connect(function() goingDown = true end)
 downButton.MouseButton1Up:Connect(function() goingDown = false end)
-downButton.MouseLeave:Connect(function() goingDown = false end)
 
--- Функция переключения полета
+-- Переключение полета
 local function toggleFly()
     flying = not flying
     local character = player.Character
@@ -156,7 +159,7 @@ local function toggleFly()
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     
-    if not rootPart || not humanoid then return end
+    if not rootPart or not humanoid then return end
     
     if flying then
         humanoid.PlatformStand = true
@@ -164,12 +167,12 @@ local function toggleFly()
         flyButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
         
         bv = Instance.new("BodyVelocity")
-        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
         bv.Velocity = Vector3.zero
         bv.Parent = rootPart
         
         bg = Instance.new("BodyGyro")
-        bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
         bg.P = 9000
         bg.Parent = rootPart
     else
@@ -203,16 +206,13 @@ runService.Heartbeat:Connect(function()
     
     if not rootPart then return end
     
-    -- Логика полета
+    -- Полет
     if flying and bv and bg then
         local moveDir = Vector3.zero
-        
-        -- Движение от джойстика
         if humanoid and humanoid.MoveDirection.Magnitude > 0 then
             moveDir = humanoid.MoveDirection * flySpeed
         end
         
-        -- Добавляем подъем вверх или вниз по кнопкам
         if goingUp then
             moveDir = moveDir + Vector3.new(0, upDownSpeed, 0)
         end
@@ -224,7 +224,7 @@ runService.Heartbeat:Connect(function()
         bg.CFrame = camera.CFrame
     end
     
-    -- Логика магнита для блоков
+    -- Магнит блоков
     if magnetActive then
         for _, obj in ipairs(workspace:GetChildren()) do
             if obj:IsA("Part") and not obj.Anchored and obj ~= rootPart then
