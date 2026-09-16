@@ -1,4 +1,4 @@
--- Мобильный скрипт: Магнит блоков + Полет с GUI
+-- Мобильный скрипт: Магнит блоков + Полет с GUI (Вверх/Вниз)
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
@@ -11,7 +11,10 @@ local camera = workspace.CurrentCamera
 local magnetRadius = 30
 local magnetSpeed = 50
 local flySpeed = 50
+local upDownSpeed = 40
 local flying = false
+local goingUp = false
+local goingDown = false
 local bv, bg
 
 -- Создание интерфейса (GUI) на экране телефона
@@ -26,12 +29,12 @@ end
 
 -- Главная панель
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 200, 0, 160)
+mainFrame.Size = UDim2.new(0, 200, 0, 265)
 mainFrame.Position = UDim2.new(0, 20, 0, 100)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = true -- Панель можно перетаскивать пальцем по экрану
+mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
 local uiCorner = Instance.new("UICorner")
@@ -63,10 +66,40 @@ local flyCorner = Instance.new("UICorner")
 flyCorner.CornerRadius = UDim.new(0, 8)
 flyCorner.Parent = flyButton
 
+-- Кнопка ВВЕРХ (↑)
+local upButton = Instance.new("TextButton")
+upButton.Size = UDim2.new(0, 85, 0, 40)
+upButton.Position = UDim2.new(0, 10, 0, 95)
+upButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+upButton.Text = "Вверх (↑)"
+upButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+upButton.TextSize = 13
+upButton.Font = Enum.Font.SourceSansBold
+upButton.Parent = mainFrame
+
+local upCorner = Instance.new("UICorner")
+upCorner.CornerRadius = UDim.new(0, 8)
+upCorner.Parent = upButton
+
+-- Кнопка ВНИЗ (↓)
+local downButton = Instance.new("TextButton")
+downButton.Size = UDim2.new(0, 85, 0, 40)
+downButton.Position = UDim2.new(0, 105, 0, 95)
+downButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+downButton.Text = "Вниз (↓)"
+downButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+downButton.TextSize = 13
+downButton.Font = Enum.Font.SourceSansBold
+downButton.Parent = mainFrame
+
+local downCorner = Instance.new("UICorner")
+downCorner.CornerRadius = UDim.new(0, 8)
+downCorner.Parent = downButton
+
 -- Кнопка магнита
 local magnetButton = Instance.new("TextButton")
 magnetButton.Size = UDim2.new(0, 180, 0, 45)
-magnetButton.Position = UDim2.new(0, 10, 0, 95)
+magnetButton.Position = UDim2.new(0, 10, 0, 145)
 magnetButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 magnetButton.Text = "Магнит: ВКЛ"
 magnetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -78,7 +111,42 @@ local magCorner = Instance.new("UICorner")
 magCorner.CornerRadius = UDim.new(0, 8)
 magCorner.Parent = magnetButton
 
+-- Кнопка закрытия меню / сворачивания (опционально)
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 180, 0, 30)
+closeButton.Position = UDim2.new(0, 10, 0, 200)
+closeButton.BackgroundColor3 = Color3.fromRGB(100, 30, 30)
+closeButton.Text = "Скрыть меню"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 12
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Parent = mainFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
+
+local menuVisible = true
+closeButton.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    flyButton.Visible = menuVisible
+    upButton.Visible = menuVisible
+    downButton.Visible = menuVisible
+    magnetButton.Visible = menuVisible
+    mainFrame.Size = menuVisible and UDim2.new(0, 200, 0, 265) or UDim2.new(0, 200, 0, 35)
+    closeButton.Text = menuVisible and "Скрыть меню" | "Открыть меню"
+end)
+
 local magnetActive = true
+
+-- Обработка нажатий на кнопки Вверх / Вниз (удерживание пальцем)
+upButton.MouseButton1Down:Connect(function() goingUp = true end)
+upButton.MouseButton1Up:Connect(function() goingUp = false end)
+upButton.MouseLeave:Connect(function() goingUp = false end)
+
+downButton.MouseButton1Down:Connect(function() goingDown = true end)
+downButton.MouseButton1Up:Connect(function() goingDown = false end)
+downButton.MouseLeave:Connect(function() goingDown = false end)
 
 -- Функция переключения полета
 local function toggleFly()
@@ -88,7 +156,7 @@ local function toggleFly()
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     
-    if not rootPart or not humanoid then return end
+    if not rootPart || not humanoid then return end
     
     if flying then
         humanoid.PlatformStand = true
@@ -126,7 +194,7 @@ magnetButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Основной цикл (полет летит туда, куда смотрит камера телефона, а магнит притягивает блоки)
+-- Основной цикл
 runService.Heartbeat:Connect(function()
     local character = player.Character
     if not character then return end
@@ -135,18 +203,28 @@ runService.Heartbeat:Connect(function()
     
     if not rootPart then return end
     
-    -- Логика полета на телефоне (движение вперед туда, куда смотрит камера)
+    -- Логика полета
     if flying and bv and bg then
         local moveDir = Vector3.zero
-        -- Если персонаж идет с помощью стандартного джойстика Roblox на телефоне:
+        
+        -- Движение от джойстика
         if humanoid and humanoid.MoveDirection.Magnitude > 0 then
             moveDir = humanoid.MoveDirection * flySpeed
         end
+        
+        -- Добавляем подъем вверх или вниз по кнопкам
+        if goingUp then
+            moveDir = moveDir + Vector3.new(0, upDownSpeed, 0)
+        end
+        if goingDown then
+            moveDir = moveDir - Vector3.new(0, upDownSpeed, 0)
+        end
+        
         bv.Velocity = moveDir
         bg.CFrame = camera.CFrame
     end
     
-    -- Логика магнита
+    -- Логика магнита для блоков
     if magnetActive then
         for _, obj in ipairs(workspace:GetChildren()) do
             if obj:IsA("Part") and not obj.Anchored and obj ~= rootPart then
